@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-MIT-darkred.svg)](LICENCE)
 ![VSCode](https://img.shields.io/badge/VSCode-1.96+-blue.svg)
 
-> **English version** [here](readme.en.md)
+> **English version** [here](README.en.md)
 
 ## Descripción
 
