@@ -28,6 +28,8 @@ let tickInterval: ReturnType<typeof setInterval> | undefined;
 let remoteSyncInterval: ReturnType<typeof setInterval> | undefined;
 let firebaseDatabase: any = null;
 let lastFocus: 'editor' | 'terminal' | 'other' = 'other';
+let lastTerminalWrite = 0;
+let backupsRoot: string | null = null;
 
 function safeNumber(n: any) { return typeof n === 'number' && !isNaN(n) ? n : 0; }
 
@@ -159,14 +161,13 @@ async function detectFrameworksInWorkspace(): Promise<string[]> {
 
         for (const m of mapping) {
             for (const k of m.keys) {
-                if (deps[k]) {
-                    if (!detected.includes(m.name)) {
-                        detected.push(m.name);
-                    }
+                    if (deps[k]) { 
+                        if (!detected.includes(m.name)) { 
+                            detected.push(m.name); 
+                        } 
                 }
             }
         }
-
         // Additional non-NPM detections by scanning common files
         // Python: requirements.txt, pyproject.toml
         const reqPath = path.join(workspaceRoot, 'requirements.txt');
@@ -251,8 +252,8 @@ async function detectFrameworksInWorkspace(): Promise<string[]> {
 
 async function generateBackup(): Promise<string | null> {
     try {
-        if (!workspaceRoot) { return null; }
-        const backupsDir = path.join(workspaceRoot, 'backups');
+        if (!workspaceRoot && !backupsRoot) { return null; }
+        const backupsDir = backupsRoot || path.join(workspaceRoot || process.cwd(), 'backups');
         ensureStorageDir(backupsDir);
         const ts = new Date();
         const name = `backup-${ts.toISOString().replace(/[:.]/g, '-')}.json`;
@@ -404,6 +405,64 @@ export async function activate(context: vscode.ExtensionContext) {
     // Reconciliación con remoto (si disponible)
     isSynced = await reconcileWithRemote();
 
+    // Setup backups root from configuration if provided
+    try {
+        const cfg = vscode.workspace.getConfiguration('vscTracker');
+        const configured = cfg.get<string>('backupDir');
+        if (configured) {
+            backupsRoot = path.isAbsolute(configured) ? configured : path.join(workspaceRoot || process.cwd(), configured);
+            ensureStorageDir(backupsRoot);
+        } else {
+            backupsRoot = null;
+        }
+    } catch (err) {
+        backupsRoot = null;
+    }
+
+    // Launch async scan to populate framework totals from existing files
+    (async () => {
+        try {
+            const detected = await detectFrameworksInWorkspace();
+            for (const d of detected) {
+                if (!store.frameworks[d]) {
+                    store.frameworks[d] = 0;
+                }
+            }
+            // quick heuristic: scan tracked files content for imports matching frameworks
+            const patterns: { [framework: string]: RegExp[] } = {
+                'React': [/import\s+React/i, /from\s+['\"]react['\"]/i, /react-dom/i],
+                'Vue': [/from\s+['\"]vue['\"]/i, /createApp\(/i],
+                'Angular': [/from\s+['\"]@angular\//i, /Component\(/i],
+                'Svelte': [/from\s+['\"]svelte['\"]/i, /<svelte:component/i],
+                'Django': [/from\s+django/i, /import\s+django/i],
+                'Flask': [/from\s+flask/i, /import\s+flask/i],
+                'Laravel': [/(Illuminate\/|laravel)/i],
+                'Ruby on Rails': [/rails/i],
+                'Spring Boot': [/org\.springframework|@SpringBootApplication/i],
+                'Next.js': [/next\/link|next\/router|getServerSideProps/i],
+                'Nuxt.js': [/nuxt\/link|nuxt/i]
+            };
+
+            for (const filePath of Object.keys(store.files)) {
+                try {
+                    if (!fs.existsSync(filePath)) {
+                        continue;
+                    }
+                    const content = fs.readFileSync(filePath, 'utf8').slice(0, 16 * 1024);
+                    for (const fw of Object.keys(patterns)) {
+                        for (const rx of patterns[fw]) {
+                            if (rx.test(content)) {
+                                store.frameworks[fw] = (store.frameworks[fw] || 0) + (store.files[filePath].ms || 0);
+                                break;
+                            }
+                        }
+                    }
+                } catch (e) { /* ignore file read errors */ }
+            }
+            saveLocalStore();
+        } catch (e) { /* ignore */ }
+    })();
+
     // Status bar
     statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
     const statusText = isSynced ? 'VSCTracker: Active' : 'VSCTracker: Inactive';
@@ -514,7 +573,7 @@ export async function activate(context: vscode.ExtensionContext) {
             vscode.window.showInformationMessage('VSCTracker: No se detectó workspace.');
             return;
         }
-        const backupsDir = path.join(workspaceRoot, 'backups');
+        const backupsDir = backupsRoot || path.join(workspaceRoot, 'backups');
         const exists = fs.existsSync(backupsDir);
         if (!exists) {
             try {
@@ -531,6 +590,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
         appendOutput([`Backups directory: ${backupsDir}`]);
         vscode.window.showInformationMessage(`VSCTracker backups directory: ${backupsDir}`);
+        // Reveal in OS file explorer
+        try {
+            vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(backupsDir));
+        } catch (e) {
+            // ignore if command not available
+        }
     }
 
     async function cmdPull() {
@@ -617,11 +682,12 @@ export async function activate(context: vscode.ExtensionContext) {
     }));
 
     // Terminal interaction counting (approximate): add fixed ms per terminal data event
-    const TERMINAL_INTERACTION_MS = 5000;
+    const TERMINAL_INTERACTION_MS = 1000; // smaller increment to avoid inflating
     if ((vscode.window as any).onDidWriteTerminalData) {
         // `onDidWriteTerminalData` is available in newer APIs
         context.subscriptions.push((vscode.window as any).onDidWriteTerminalData((e: any) => {
-            // increment terminal language/framework
+            // Only count terminal write events when terminal is likely focused
+            lastTerminalWrite = Date.now();
             store.languages['terminal'] = (store.languages['terminal'] || 0) + TERMINAL_INTERACTION_MS;
             store.frameworks['terminal'] = (store.frameworks['terminal'] || 0) + TERMINAL_INTERACTION_MS;
             saveLocalStore();
