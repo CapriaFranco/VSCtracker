@@ -10,13 +10,15 @@ type FileEntry = { language: string; ms: number };
 type LocalStore = {
     files: { [filePath: string]: FileEntry };
     languages: { [language: string]: number };
+    frameworks: { [framework: string]: number };
     updatedAt: number;
 };
 
 let statusBarItem: vscode.StatusBarItem | undefined;
 let localStorageFile: string;
-let store: LocalStore = { files: {}, languages: {}, updatedAt: Date.now() };
+let store: LocalStore = { files: {}, languages: {}, frameworks: {}, updatedAt: Date.now() };
 let isSynced: boolean = false;
+let workspaceRoot: string | undefined;
 const outputChannel = vscode.window.createOutputChannel('VSCTracker');
 
 // Tracking runtime state
@@ -95,12 +97,13 @@ function loadLocalStore(): void {
             store = {
                 files: parsed.files || {},
                 languages: parsed.languages || {},
+                frameworks: parsed.frameworks || {},
                 updatedAt: parsed.updatedAt || Date.now()
             };
         }
     } catch (err) {
         console.error('Error leyendo storage local:', err);
-        store = { files: {}, languages: {}, updatedAt: Date.now() };
+        store = { files: {}, languages: {}, frameworks: {}, updatedAt: Date.now() };
     }
 }
 
@@ -113,6 +116,33 @@ function saveLocalStore(): void {
     }
 }
 
+function ensureWorkspaceRoot(context: vscode.ExtensionContext) {
+    if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+        workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
+    } else {
+        // fallback to extension folder parent
+        workspaceRoot = path.dirname(context.extensionPath || process.cwd());
+    }
+}
+
+async function generateBackup(): Promise<string | null> {
+    try {
+        if (!workspaceRoot) { return null; }
+        const backupsDir = path.join(workspaceRoot, 'backups');
+        ensureStorageDir(backupsDir);
+        const ts = new Date();
+        const name = `backup-${ts.toISOString().replace(/[:.]/g, '-')}.json`;
+        const filePath = path.join(backupsDir, name);
+        const payload = { generatedAt: ts.toISOString(), isSynced, store };
+        fs.writeFileSync(filePath, JSON.stringify(payload, null, 2));
+        outputChannel.appendLine(`Backup generado: ${filePath}`);
+        return filePath;
+    } catch (err) {
+        console.error('Error generando backup:', err);
+        return null;
+    }
+}
+
 async function reconcileWithRemote(): Promise<boolean> {
     try {
         const remoteLangs = await fetchRemoteLanguages();
@@ -120,6 +150,7 @@ async function reconcileWithRemote(): Promise<boolean> {
         // Si no hay remoto, subimos las lenguajes locales
         if (!remoteLangs) {
             await pushLanguagesToRemote(store.languages);
+            await generateBackup();
             return true;
         }
 
@@ -147,6 +178,9 @@ async function reconcileWithRemote(): Promise<boolean> {
             await pushLanguagesToRemote({ ...remoteLangs, ...updatesToRemote });
         }
 
+        // Generar backup local tras un reconcile exitoso
+        await generateBackup();
+
         return true;
     } catch (err) {
         console.error('Error en reconcileWithRemote:', err);
@@ -167,12 +201,22 @@ function tickAdd(ms: number) {
     if (!currentFilePath) {
         return;
     }
-    const lang = store.files[currentFilePath]?.language || getActiveEditorFile().language || 'unknown';
+    const langFromEditor = getActiveEditorFile().language || 'unknown';
+    const lang = store.files[currentFilePath]?.language || langFromEditor;
     if (!store.files[currentFilePath]) {
         store.files[currentFilePath] = { language: lang, ms: 0 };
     }
     store.files[currentFilePath].ms += ms;
+    // add to language total
     store.languages[lang] = (store.languages[lang] || 0) + ms;
+
+    // Framework detection: .tsx -> typescript + react framework
+    const ext = path.extname(currentFilePath).toLowerCase();
+    if (ext === '.tsx') {
+        // add React framework
+        store.frameworks['react'] = (store.frameworks['react'] || 0) + ms;
+        // ensure typescript already counted via language
+    }
 }
 
 function startTicker() {
@@ -218,6 +262,7 @@ export async function activate(context: vscode.ExtensionContext) {
     localStorageFile = path.join(context.globalStoragePath, 'localCodingStore.json');
     ensureStorageDir(context.globalStoragePath);
     loadLocalStore();
+    ensureWorkspaceRoot(context);
 
     // Intentamos inicializar Firebase (si está configurado por env)
     await tryInitFirebase();
@@ -301,6 +346,21 @@ export async function activate(context: vscode.ExtensionContext) {
         appendOutput(['Remote languages:', ...Object.keys(remote).map(k => `${k}: ${formatMs(remote[k])}`)]);
     }
 
+    async function cmdList() {
+        const langs = Object.keys(store.languages || {}).map(l => `${l}: ${formatMs(store.languages[l])}`);
+        const frameworks = Object.keys(store.frameworks || {}).map(f => `${f}: ${formatMs(store.frameworks[f])}`);
+        appendOutput(['Detected languages (local):', ...langs, '', 'Detected frameworks (local):', ...frameworks]);
+    }
+
+    async function cmdBackup() {
+        const file = await generateBackup();
+        if (file) {
+            vscode.window.showInformationMessage(`VSCTracker: Backup generado en ${file}`);
+        } else {
+            vscode.window.showErrorMessage('VSCTracker: Error generando backup. Revisa salida.');
+        }
+    }
+
     async function cmdPull() {
         if (!firebaseDatabase) {
             vscode.window.showErrorMessage('VSCTracker: Firebase no está configurado.');
@@ -327,6 +387,8 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(vscode.commands.registerCommand('VSCtracker.vt.showLocal', () => cmdShowLocal()));
     context.subscriptions.push(vscode.commands.registerCommand('VSCtracker.vt.showRemote', () => cmdShowRemote()));
     context.subscriptions.push(vscode.commands.registerCommand('VSCtracker.vt.pull', () => cmdPull()));
+    context.subscriptions.push(vscode.commands.registerCommand('VSCtracker.vt.list', () => cmdList()));
+    context.subscriptions.push(vscode.commands.registerCommand('VSCtracker.vt.backup', () => cmdBackup()));
 
     // Comando único 'vt' que acepta entrada o abre help
     context.subscriptions.push(vscode.commands.registerCommand('VSCtracker.vt', async (arg) => {
@@ -364,11 +426,30 @@ export async function activate(context: vscode.ExtensionContext) {
             case 'pull':
                 await cmdPull();
                 break;
+            case 'list':
+            case 'detected':
+                await cmdList();
+                break;
+            case 'backup':
+                await cmdBackup();
+                break;
             default:
                 showHelp();
                 break;
         }
     }));
+
+    // Terminal interaction counting (approximate): add fixed ms per terminal data event
+    const TERMINAL_INTERACTION_MS = 5000;
+    if ((vscode.window as any).onDidWriteTerminalData) {
+        // `onDidWriteTerminalData` is available in newer APIs
+        context.subscriptions.push((vscode.window as any).onDidWriteTerminalData((e: any) => {
+            // increment terminal language/framework
+            store.languages['terminal'] = (store.languages['terminal'] || 0) + TERMINAL_INTERACTION_MS;
+            store.frameworks['terminal'] = (store.frameworks['terminal'] || 0) + TERMINAL_INTERACTION_MS;
+            saveLocalStore();
+        }));
+    }
 
     // Comandos
     context.subscriptions.push(vscode.commands.registerCommand('VSCtracker.showTotalTime', () => {
