@@ -5,6 +5,11 @@
 [![License](https://img.shields.io/badge/license-MIT-darkred.svg)](LICENCE)
 ![VSCode](https://img.shields.io/badge/VSCode-1.96+-blue.svg)
 
+<<<<<<< HEAD
+=======
+> **English version** [here](README.en.md)
+
+>>>>>>> 2bf8fa70751f3e8d729e5ad2a09024d917f7ee25
 ## Descripción
 
 VSCTracker es una extensión ligera para Visual Studio Code que registra el tiempo de edición por archivo y resume por lenguaje. Los datos se mantienen localmente y se pueden sincronizar con Firebase (opcional) usando un esquema simple por lenguaje.

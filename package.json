@@ -41,6 +41,15 @@
         "command": "VSCtracker.vt.pull",
         "title": "vt pull (cargar DB -> local, sumar)"
       }
+      ,
+      {
+        "command": "VSCtracker.vt.list",
+        "title": "vt list (mostrar lenguajes y frameworks detectados)"
+      },
+      {
+        "command": "VSCtracker.vt.backup",
+        "title": "vt backup (generar backup JSON local)"
+      }
     ],
     "configuration": {
       "title": "VSCTracker",
