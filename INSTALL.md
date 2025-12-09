@@ -45,7 +45,7 @@ npm run compile
 
 # 4. Genera el paquete .vsix (sin necesidad de instalar vsce)
 npx vsce package
-# Resultado: vsctracker-1.2.0.vsix
+# Resultado: vsctracker-x.x.x.vsix
 ```
 
 #### Opción B: Instalar `vsce` globalmente
@@ -66,7 +66,7 @@ npm run compile
 
 # 5. Genera el paquete .vsix
 vsce package
-# Resultado: vsctracker-1.2.0.vsix
+# Resultado: vsctracker-x.x.x.vsix
 ```
 
 ### Instalar el `.vsix`
@@ -74,13 +74,13 @@ vsce package
 #### Opción A: Terminal PowerShell (Windows/Linux/macOS)
 
 ```powershell
-code --install-extension .\vsctracker-1.2.0.vsix
+code --install-extension .\vsctracker-x.x.x.vsix
 ```
 
 #### Opción B: Terminal Bash (macOS/Linux)
 
 ```bash
-code --install-extension ./vsctracker-1.2.0.vsix
+code --install-extension ./vsctracker-x.x.x.vsix
 ```
 
 #### Opción C: Interfaz gráfica de VS Code
@@ -89,7 +89,7 @@ code --install-extension ./vsctracker-1.2.0.vsix
 2. Ve a **Extensiones** (Ctrl+Shift+X)
 3. Haz clic en los **tres puntos** (menú superior)
 4. Selecciona **Install from VSIX...**
-5. Navega y selecciona el archivo `vsctracker-1.2.0.vsix`
+5. Navega y selecciona el archivo `vsctracker-x.x.x.vsix`
 6. Haz clic en **Instalar**
 
 #### Opción D: Arrastrar y soltar (VS Code 1.90+)
@@ -227,7 +227,7 @@ vt backup-dir        → Abre carpeta de backups
    ```bash
    code --list-extensions  # Ver extensiones instaladas
    code --uninstall-extension capria-franco.vsctracker  # Desinstalar
-   code --install-extension ./vsctracker-1.2.0.vsix      # Reinstalar
+   code --install-extension ./vsctracker-x.x.x.vsix      # Reinstalar
    ```
 
 ### El comando `vt help` no funciona
@@ -293,7 +293,7 @@ vt backup-dir        → Abre carpeta de backups
 
 3. Instala la nueva versión:
    ```bash
-   code --install-extension ./vsctracker-1.2.0.vsix
+   code --install-extension ./vsctracker-x.x.x.vsix
    ```
 
 ---
@@ -349,4 +349,4 @@ Si tienes problemas:
 ---
 
 **Última actualización**: 9 de diciembre de 2025  
-**Versión**: 1.2.0
+**Versión**: 1.2.1

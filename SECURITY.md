@@ -216,4 +216,4 @@ For security-related questions or to report vulnerabilities:
 ---
 
 **Last Updated**: December 9, 2025  
-**Version**: 1.2.0
+**Version**: 1.2.1

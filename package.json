@@ -3,7 +3,7 @@
   "displayName": "vsctracker",
   "icon": "img/VSCtracker.png",
   "description": "Extensión para contar el tiempo de programación en VSC.",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "publisher": "capriafranco",
   "engines": {
     "vscode": "^1.96.0"
@@ -11,6 +11,21 @@
   "categories": ["Other"],
   
   "main": "./out/extension.js",
+  "activationEvents": [
+    "onCommand:VSCtracker.vt",
+    "onCommand:VSCtracker.vt.help",
+    "onCommand:VSCtracker.vt.save",
+    "onCommand:VSCtracker.vt.status",
+    "onCommand:VSCtracker.vt.showLocal",
+    "onCommand:VSCtracker.vt.showRemote",
+    "onCommand:VSCtracker.vt.pull",
+    "onCommand:VSCtracker.vt.list",
+    "onCommand:VSCtracker.vt.backup",
+    "onCommand:VSCtracker.vt.backupDir",
+    "onCommand:VSCtracker.vt.setBackupDir",
+    "onCommand:VSCtracker.vt.clearBackupDir",
+    "onStartupFinished"
+  ],
   "contributes": {
     "commands": [
       {
@@ -63,6 +78,15 @@
       {
         "command": "VSCtracker.vt.clearBackupDir",
         "title": "vt clear-backup-dir (eliminar ruta configurada)"
+      }
+      ,
+      {
+        "command": "VSCtracker.vt.setFirebaseConfig",
+        "title": "vt set-firebase-config (configurar credenciales Firebase)"
+      },
+      {
+        "command": "VSCtracker.vt.clearFirebaseConfig",
+        "title": "vt clear-firebase-config (eliminar credenciales Firebase)"
       }
     ],
     "configuration": {

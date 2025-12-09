@@ -1,6 +1,6 @@
 # VSCTracker — Personal Mini WakaTime
 
-[![Version](https://img.shields.io/badge/version-1.2.0-yellow.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.2.1-yellow.svg)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-darkred.svg)](LICENSE)
 [![VSCode](https://img.shields.io/badge/VSCode-1.96+-blue.svg)](https://code.visualstudio.com)
 [![Node](https://img.shields.io/badge/Node.js-20.x-green.svg)](https://nodejs.org)
@@ -187,11 +187,11 @@ vsce package
 ```bash
 # If you already installed vsce globally:
 vsce package
-# Generates: vsctracker-1.2.0.vsix
+# Generates: vsctracker-x.x.x.vsix
 
 # Or without global installation:
 npx vsce package
-# Generates: vsctracker-1.2.0.vsix
+# Generates: vsctracker-x.x.x.vsix
 ```
 
 ### Install Locally
@@ -199,7 +199,7 @@ npx vsce package
 **Option 1: PowerShell Terminal**
 
 ```powershell
-code --install-extension .\vsctracker-1.2.0.vsix
+code --install-extension .\vsctracker-x.x.x.vsix
 ```
 
 **Option 2: VS Code Interface**
@@ -373,6 +373,6 @@ Required:
 
 ---
 
-**Current version**: 1.2.0 | **Last update**: December 9, 2025
+**Current version**: 1.2.1 | **Last update**: December 9, 2025
 
 > 🌍 **Versión en español** [aquí](README.md)

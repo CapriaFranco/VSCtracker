@@ -351,7 +351,7 @@ What actually happens
 
 ## Environment
 - VS Code version: 1.96.x
-- Extension version: 1.2.0
+- Extension version: 1.2.1
 - OS: Windows 10 / macOS / Linux
 - Node.js version: 20.x
 

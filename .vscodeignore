@@ -1,6 +1,8 @@
 # Archivos privados
-.env
-.test.env
+# Nota: .env se incluirá en el VSIX por petición del autor (contendrá credenciales locales)
+# Ten cuidado al publicar este paquete si contiene secretos.
+# .env
+# .test.env
 
 # Carpeta de desarrollo
 .vscode/
