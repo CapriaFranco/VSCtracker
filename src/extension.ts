@@ -125,6 +125,34 @@ function ensureWorkspaceRoot(context: vscode.ExtensionContext) {
     }
 }
 
+async function detectFrameworksInWorkspace(): Promise<string[]> {
+    const detected: string[] = [];
+    try {
+        if (!workspaceRoot) { return detected };
+        const pkgPath = path.join(workspaceRoot, 'package.json');
+        if (!fs.existsSync(pkgPath)) { return detected };
+        const raw = fs.readFileSync(pkgPath, 'utf8');
+        const pkg = JSON.parse(raw || '{}');
+        const deps = Object.assign({}, pkg.dependencies || {}, pkg.devDependencies || {}, pkg.peerDependencies || {});
+
+        // React
+        if (deps['react'] || deps['react-dom'] || deps['next']) {
+            detected.push('react');
+        }
+        // Vue
+        if (deps['vue'] || deps['@vue/runtime-dom'] || deps['nuxt']) {
+            detected.push('vue');
+        }
+        // Angular
+        if (deps['@angular/core'] || deps['@angular/common']) {
+            detected.push('angular');
+        }
+    } catch (err) {
+        console.warn('detectFrameworksInWorkspace error:', err);
+    }
+    return detected;
+}
+
 async function generateBackup(): Promise<string | null> {
     try {
         if (!workspaceRoot) { return null; }
@@ -234,6 +262,12 @@ function startTicker() {
 
         const active = getActiveEditorFile();
         if (!active.path) {
+            // Si no hay editor activo, asumimos que la terminal puede tener foco
+            if (vscode.window.terminals && vscode.window.terminals.length > 0) {
+                // sumar tiempo al "language" terminal
+                store.languages['terminal'] = (store.languages['terminal'] || 0) + delta;
+                store.frameworks['terminal'] = (store.frameworks['terminal'] || 0) + delta;
+            }
             return;
         }
         currentFilePath = active.path;
@@ -291,7 +325,10 @@ export async function activate(context: vscode.ExtensionContext) {
             'vt save - guarda datos locales en la DB (reconcile)',
             'vt show-local - muestra datos locales por lenguaje',
             'vt show-remote - muestra datos en la DB remota (por lenguaje)',
-            'vt pull - carga datos de la DB en local (se SUMAN a local)'
+            'vt pull - carga datos de la DB en local (se SUMAN a local)',
+            'vt list - muestra lenguajes, frameworks detectados y frameworks con tiempo',
+            'vt backup - genera un backup JSON local en la carpeta backups/',
+            'vt backup-dir - muestra la carpeta donde se guardan los backups'
         ];
         appendOutput(['VSCTracker Help:', ...help]);
     }
@@ -349,7 +386,18 @@ export async function activate(context: vscode.ExtensionContext) {
     async function cmdList() {
         const langs = Object.keys(store.languages || {}).map(l => `${l}: ${formatMs(store.languages[l])}`);
         const frameworks = Object.keys(store.frameworks || {}).map(f => `${f}: ${formatMs(store.frameworks[f])}`);
-        appendOutput(['Detected languages (local):', ...langs, '', 'Detected frameworks (local):', ...frameworks]);
+        const detected = await detectFrameworksInWorkspace();
+        const detectedLines = detected.length ? detected : ['(none detected)'];
+        appendOutput([
+            'Detected languages (local):',
+            ...langs,
+            '',
+            'Detected frameworks (by package.json):',
+            ...detectedLines,
+            '',
+            'Frameworks time (local):',
+            ...frameworks
+        ]);
     }
 
     async function cmdBackup() {
@@ -359,6 +407,16 @@ export async function activate(context: vscode.ExtensionContext) {
         } else {
             vscode.window.showErrorMessage('VSCTracker: Error generando backup. Revisa salida.');
         }
+    }
+
+    function cmdShowBackupDir() {
+        if (!workspaceRoot) {
+            vscode.window.showInformationMessage('VSCTracker: No se detectó workspace.');
+            return;
+        }
+        const backupsDir = path.join(workspaceRoot, 'backups');
+        appendOutput([`Backups directory: ${backupsDir}`]);
+        vscode.window.showInformationMessage(`VSCTracker backups directory: ${backupsDir}`);
     }
 
     async function cmdPull() {
@@ -389,6 +447,7 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(vscode.commands.registerCommand('VSCtracker.vt.pull', () => cmdPull()));
     context.subscriptions.push(vscode.commands.registerCommand('VSCtracker.vt.list', () => cmdList()));
     context.subscriptions.push(vscode.commands.registerCommand('VSCtracker.vt.backup', () => cmdBackup()));
+    context.subscriptions.push(vscode.commands.registerCommand('VSCtracker.vt.backupDir', () => cmdShowBackupDir()));
 
     // Comando único 'vt' que acepta entrada o abre help
     context.subscriptions.push(vscode.commands.registerCommand('VSCtracker.vt', async (arg) => {
@@ -432,6 +491,10 @@ export async function activate(context: vscode.ExtensionContext) {
                 break;
             case 'backup':
                 await cmdBackup();
+                break;
+            case 'backup-dir':
+            case 'backupdir':
+                cmdShowBackupDir();
                 break;
             default:
                 showHelp();

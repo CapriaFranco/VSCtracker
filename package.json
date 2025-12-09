@@ -50,6 +50,11 @@
         "command": "VSCtracker.vt.backup",
         "title": "vt backup (generar backup JSON local)"
       }
+      ,
+      {
+        "command": "VSCtracker.vt.backupDir",
+        "title": "vt backup-dir (mostrar carpeta de backups)"
+      }
     ],
     "configuration": {
       "title": "VSCTracker",
