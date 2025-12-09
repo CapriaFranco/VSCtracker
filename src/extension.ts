@@ -136,11 +136,11 @@ function ensureWorkspaceRoot(context: vscode.ExtensionContext) {
 }
 
 function getWorkspaceForPath(filePath: string | null): string | undefined {
-    if (!filePath) return activeWorkspaceRoot || workspaceRoot;
+    if (!filePath) { return activeWorkspaceRoot || workspaceRoot; }
     const folders = vscode.workspace.workspaceFolders || [];
     for (const f of folders) {
         const fsPath = f.uri.fsPath;
-        if (filePath.startsWith(fsPath)) return fsPath;
+        if (filePath.startsWith(fsPath)) { return fsPath; }
     }
     return activeWorkspaceRoot || workspaceRoot;
 }
@@ -417,7 +417,7 @@ function formatMs(ms: number): string {
 }
 
 function updateStatusBar() {
-    if (!statusBarItem) return;
+    if (!statusBarItem) { return; }
     const icon = isSynced ? '✅' : '⚠️';
     const total = formatMs(totalMs());
     statusBarItem.text = `${icon} VSCTracker ${total}`;
@@ -506,7 +506,7 @@ export async function activate(context: vscode.ExtensionContext) {
     // Commands to set/clear backup path stored in extension globalState
     async function cmdSetBackupDir() {
         const input = await vscode.window.showInputBox({ prompt: 'Ruta absoluta para backups (ej: D:\\backups) o ruta relativa al home (ej: vsctracker/backups).', placeHolder: '~/vsctracker/backups' });
-        if (!input) return;
+        if (!input) { return; }
         let resolved = input;
         if (resolved.startsWith('~')) {
             resolved = path.join(os.homedir(), resolved.slice(1));
@@ -775,7 +775,7 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(vscode.commands.registerCommand('VSCtracker.vt.clearBackupDir', () => cmdClearBackupDir()));
 
     function updateStatusBar() {
-        if (!statusBarItem) return;
+        if (!statusBarItem) { return; }
         const icon = isSynced ? '✅' : '⚠️';
         const total = formatMs(totalMs());
         statusBarItem.text = `${icon} VSCTracker ${total}`;
@@ -803,7 +803,7 @@ export async function activate(context: vscode.ExtensionContext) {
                     store.files[currentFilePath] = { language: info.language, ms: 0 };
                 }
             }
-            if (statusBarItem) updateStatusBar();
+            if (statusBarItem) { updateStatusBar(); }
         }
     }));
 
@@ -811,7 +811,7 @@ export async function activate(context: vscode.ExtensionContext) {
         context.subscriptions.push((vscode.window as any).onDidChangeActiveTerminal((t: any) => {
             if (t) {
                 lastFocus = 'terminal';
-                if (statusBarItem) updateStatusBar();
+                if (statusBarItem) { updateStatusBar(); }
             }
         }));
     }

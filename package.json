@@ -3,7 +3,7 @@
   "displayName": "vsctracker",
   "icon": "img/VSCtracker.png",
   "description": "Extensión para contar el tiempo de programación en VSC.",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "publisher": "Capria Franco",
   "engines": {
     "vscode": "^1.96.0"
@@ -72,21 +72,6 @@
           "type": "string",
           "default": "",
           "description": "Optional path for backups (absolute or relative to workspace)."
-        }
-      }
-    },
-    "configuration": {
-      "title": "VSCTracker",
-      "properties": {
-        "vsctracker.firebaseApiKey": {
-          "type": "string",
-          "default": "",
-          "description": "Firebase API Key"
-        },
-        "vsctracker.firebaseAuthDomain": {
-          "type": "string",
-          "default": "",
-          "description": "Firebase Auth Domain"
         }
       }
     }
