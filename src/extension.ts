@@ -27,6 +27,7 @@ let lastTick = Date.now();
 let tickInterval: ReturnType<typeof setInterval> | undefined;
 let remoteSyncInterval: ReturnType<typeof setInterval> | undefined;
 let firebaseDatabase: any = null;
+let lastFocus: 'editor' | 'terminal' | 'other' = 'other';
 
 function safeNumber(n: any) { return typeof n === 'number' && !isNaN(n) ? n : 0; }
 
@@ -128,25 +129,120 @@ function ensureWorkspaceRoot(context: vscode.ExtensionContext) {
 async function detectFrameworksInWorkspace(): Promise<string[]> {
     const detected: string[] = [];
     try {
-        if (!workspaceRoot) { return detected };
+        if (!workspaceRoot) { return detected; }
         const pkgPath = path.join(workspaceRoot, 'package.json');
-        if (!fs.existsSync(pkgPath)) { return detected };
+        if (!fs.existsSync(pkgPath)) { return detected; }
         const raw = fs.readFileSync(pkgPath, 'utf8');
         const pkg = JSON.parse(raw || '{}');
         const deps = Object.assign({}, pkg.dependencies || {}, pkg.devDependencies || {}, pkg.peerDependencies || {});
 
-        // React
-        if (deps['react'] || deps['react-dom'] || deps['next']) {
-            detected.push('react');
+        // Map of package keys -> framework name
+        const mapping: { keys: string[]; name: string }[] = [
+            { keys: ['react', 'react-dom', 'next'], name: 'React' },
+            { keys: ['vue', '@vue/runtime-dom', 'nuxt'], name: 'Vue' },
+            { keys: ['@angular/core', '@angular/common'], name: 'Angular' },
+            { keys: ['svelte'], name: 'Svelte' },
+            { keys: ['ember-source', 'ember'], name: 'Ember' },
+            { keys: ['backbone'], name: 'Backbone' },
+            { keys: ['next'], name: 'Next.js' },
+            { keys: ['nuxt'], name: 'Nuxt.js' },
+            { keys: ['bootstrap'], name: 'Bootstrap' },
+            { keys: ['tailwindcss'], name: 'Tailwind CSS' },
+            { keys: ['express'], name: 'Express.js' },
+            { keys: ['@nestjs/core', 'nestjs'], name: 'NestJS' },
+            { keys: ['hapi', '@hapi/hapi'], name: 'Hapi.js' },
+            { keys: ['meteor-node-stubs', 'meteor-base'], name: 'Meteor' },
+            { keys: ['@adonisjs/core'], name: 'AdonisJS' },
+            { keys: ['deno'], name: 'Deno' },
+            { keys: ['node'], name: 'Node.js' }
+        ];
+
+        for (const m of mapping) {
+            for (const k of m.keys) {
+                if (deps[k]) {
+                    if (!detected.includes(m.name)) {
+                        detected.push(m.name);
+                    }
+                }
+            }
         }
-        // Vue
-        if (deps['vue'] || deps['@vue/runtime-dom'] || deps['nuxt']) {
-            detected.push('vue');
+
+        // Additional non-NPM detections by scanning common files
+        // Python: requirements.txt, pyproject.toml
+        const reqPath = path.join(workspaceRoot, 'requirements.txt');
+        if (fs.existsSync(reqPath)) {
+            const req = fs.readFileSync(reqPath, 'utf8');
+            if (/django/i.test(req)) {
+                detected.push('Django');
+            }
+            if (/flask/i.test(req)) {
+                detected.push('Flask');
+            }
         }
-        // Angular
-        if (deps['@angular/core'] || deps['@angular/common']) {
-            detected.push('angular');
+        const pyproject = path.join(workspaceRoot, 'pyproject.toml');
+        if (fs.existsSync(pyproject)) {
+            const p = fs.readFileSync(pyproject, 'utf8');
+            if (/django/i.test(p)) {
+                detected.push('Django');
+            }
+            if (/flask/i.test(p)) {
+                detected.push('Flask');
+            }
         }
+
+        // PHP: composer.json -> laravel/framework
+        const composer = path.join(workspaceRoot, 'composer.json');
+        if (fs.existsSync(composer)) {
+            try {
+                const comp = JSON.parse(fs.readFileSync(composer, 'utf8') || '{}');
+                const compDeps = Object.assign({}, comp.require || {}, comp['require-dev'] || {});
+                if (compDeps['laravel/framework'] || compDeps['laravel/laravel']) {
+                    detected.push('Laravel');
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        // Ruby: Gemfile -> rails
+        const gemfile = path.join(workspaceRoot, 'Gemfile');
+        if (fs.existsSync(gemfile)) {
+            const g = fs.readFileSync(gemfile, 'utf8');
+            if (/rails/i.test(g)) {
+                detected.push('Ruby on Rails');
+            }
+        }
+
+        // Java: pom.xml or build.gradle -> spring-boot
+        const pom = path.join(workspaceRoot, 'pom.xml');
+        if (fs.existsSync(pom)) {
+            const pcont = fs.readFileSync(pom, 'utf8');
+            if (/spring-boot/i.test(pcont) || /org.springframework.boot/i.test(pcont)) {
+                detected.push('Spring Boot');
+            }
+        }
+        const gradle = path.join(workspaceRoot, 'build.gradle');
+        if (fs.existsSync(gradle)) {
+            const gcont = fs.readFileSync(gradle, 'utf8');
+            if (/spring-boot/i.test(gcont) || /org.springframework.boot/i.test(gcont)) {
+                detected.push('Spring Boot');
+            }
+        }
+
+        // Deno
+        const denoConfig = path.join(workspaceRoot, 'deno.json');
+        const depsTs = path.join(workspaceRoot, 'deps.ts');
+        if (fs.existsSync(denoConfig) || fs.existsSync(depsTs)) {
+            detected.push('Deno');
+        }
+
+        // ASP.NET Core: look for .csproj files
+        const files = fs.readdirSync(workspaceRoot);
+        if (files.some(f => f.endsWith('.csproj'))) {
+            detected.push('ASP.NET Core');
+        }
+
+        // Avoid duplicates
+        const unique = Array.from(new Set(detected));
+        return unique;
     } catch (err) {
         console.warn('detectFrameworksInWorkspace error:', err);
     }
@@ -238,13 +334,8 @@ function tickAdd(ms: number) {
     // add to language total
     store.languages[lang] = (store.languages[lang] || 0) + ms;
 
-    // Framework detection: .tsx -> typescript + react framework
-    const ext = path.extname(currentFilePath).toLowerCase();
-    if (ext === '.tsx') {
-        // add React framework
-        store.frameworks['react'] = (store.frameworks['react'] || 0) + ms;
-        // ensure typescript already counted via language
-    }
+    // Note: framework detection by file extension removed. Frameworks are
+    // detected by scanning project files/package manifests instead.
 }
 
 function startTicker() {
@@ -261,15 +352,24 @@ function startTicker() {
         }
 
         const active = getActiveEditorFile();
+        // If the last known focus was the terminal, don't add to file.
+        if (lastFocus === 'terminal') {
+            store.languages['terminal'] = (store.languages['terminal'] || 0) + delta;
+            store.frameworks['terminal'] = (store.frameworks['terminal'] || 0) + delta;
+            saveLocalStore();
+            return;
+        }
+
         if (!active.path) {
-            // Si no hay editor activo, asumimos que la terminal puede tener foco
+            // No active editor: if there are terminal panels, count terminal time as fallback
             if (vscode.window.terminals && vscode.window.terminals.length > 0) {
-                // sumar tiempo al "language" terminal
                 store.languages['terminal'] = (store.languages['terminal'] || 0) + delta;
                 store.frameworks['terminal'] = (store.frameworks['terminal'] || 0) + delta;
+                saveLocalStore();
             }
             return;
         }
+
         currentFilePath = active.path;
         tickAdd(delta);
     }, 1000);
@@ -415,6 +515,20 @@ export async function activate(context: vscode.ExtensionContext) {
             return;
         }
         const backupsDir = path.join(workspaceRoot, 'backups');
+        const exists = fs.existsSync(backupsDir);
+        if (!exists) {
+            try {
+                ensureStorageDir(backupsDir);
+                appendOutput([`Backups directory created: ${backupsDir}`]);
+                vscode.window.showInformationMessage(`VSCTracker: Backups directory created: ${backupsDir}`);
+                return;
+            } catch (err) {
+                appendOutput([`Backups directory: ${backupsDir} (failed to create)`]);
+                vscode.window.showErrorMessage(`VSCTracker: No se pudo crear backups dir: ${backupsDir}`);
+                return;
+            }
+        }
+
         appendOutput([`Backups directory: ${backupsDir}`]);
         vscode.window.showInformationMessage(`VSCTracker backups directory: ${backupsDir}`);
     }
@@ -535,6 +649,21 @@ export async function activate(context: vscode.ExtensionContext) {
             return; // al recuperar foco no hacemos nada especial
         }
     }));
+
+    // Track last focus source: when editor becomes active, mark editor; when terminal changes, mark terminal.
+    context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor((editor) => {
+        if (editor) {
+            lastFocus = 'editor';
+        }
+    }));
+
+    if ((vscode.window as any).onDidChangeActiveTerminal) {
+        context.subscriptions.push((vscode.window as any).onDidChangeActiveTerminal((t: any) => {
+            if (t) {
+                lastFocus = 'terminal';
+            }
+        }));
+    }
 
     context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor((editor) => {
         // cambio de archivo activo: actualizamos currentFilePath para el ticker
