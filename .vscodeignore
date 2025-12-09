@@ -1,11 +1,25 @@
-.vscode/**
-.vscode-test/**
-src/**
+# Archivos privados
+.env
+.test.env
+
+# Carpeta de desarrollo
+.vscode/
+
+# Documentación no necesaria en el VSIX
+ARCHITECTURE.md
+INSTALL.md
+SECURITY.md
+README.en.md
+
+# Código fuente TS, solo incluir "out/"
+src/
+
+# Dependencias — solo incluir las que realmente necesitás
+node_modules/
+
+# Git
+.git/
 .gitignore
-.yarnrc
-vsc-extension-quickstart.md
-**/tsconfig.json
-**/eslint.config.mjs
-**/*.map
-**/*.ts
-**/.vscode-test.*
+
+# Backups locales
+backups/

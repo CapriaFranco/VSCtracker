@@ -171,9 +171,25 @@ In `.vscode/settings.json` you can set:
 
 ## 📦 Packaging and Installation
 
+### Prerequisites for Packaging
+
+```bash
+# Option 1: Use npx (recommended, no global installation)
+npx vsce package
+
+# Option 2: Install vsce globally (one-time setup)
+npm install -g @vscode/vsce
+vsce package
+```
+
 ### Generate `.vsix`
 
 ```bash
+# If you already installed vsce globally:
+vsce package
+# Generates: vsctracker-1.2.0.vsix
+
+# Or without global installation:
 npx vsce package
 # Generates: vsctracker-1.2.0.vsix
 ```

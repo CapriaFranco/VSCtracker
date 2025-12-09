@@ -30,6 +30,8 @@
 
 Si prefieres generar tu propio archivo `.vsix`:
 
+#### Opción A: Usar `npx` (Recomendado - sin instalación global)
+
 ```bash
 # 1. Clona el repositorio
 git clone https://github.com/CapriaFranco/VSCTracker.git
@@ -41,8 +43,29 @@ npm install
 # 3. Compila el código
 npm run compile
 
-# 4. Genera el paquete .vsix
+# 4. Genera el paquete .vsix (sin necesidad de instalar vsce)
 npx vsce package
+# Resultado: vsctracker-1.2.0.vsix
+```
+
+#### Opción B: Instalar `vsce` globalmente
+
+```bash
+# 1. Instala vsce globalmente (una sola vez)
+npm install -g @vscode/vsce
+
+# 2. Clona el repositorio
+git clone https://github.com/CapriaFranco/VSCTracker.git
+cd VSCTracker
+
+# 3. Instala dependencias
+npm install
+
+# 4. Compila el código
+npm run compile
+
+# 5. Genera el paquete .vsix
+vsce package
 # Resultado: vsctracker-1.2.0.vsix
 ```
 

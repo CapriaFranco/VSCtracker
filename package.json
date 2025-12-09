@@ -4,7 +4,7 @@
   "icon": "img/VSCtracker.png",
   "description": "Extensión para contar el tiempo de programación en VSC.",
   "version": "1.2.0",
-  "publisher": "Capria Franco",
+  "publisher": "capriafranco",
   "engines": {
     "vscode": "^1.96.0"
   },
