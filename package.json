@@ -55,7 +55,26 @@
         "command": "VSCtracker.vt.backupDir",
         "title": "vt backup-dir (mostrar carpeta de backups)"
       }
+      ,
+      {
+        "command": "VSCtracker.vt.setBackupDir",
+        "title": "vt set-backup-dir (configurar ruta de backups)"
+      },
+      {
+        "command": "VSCtracker.vt.clearBackupDir",
+        "title": "vt clear-backup-dir (eliminar ruta configurada)"
+      }
     ],
+    "configuration": {
+      "title": "VSCTracker",
+      "properties": {
+        "vscTracker.backupDir": {
+          "type": "string",
+          "default": "",
+          "description": "Optional path for backups (absolute or relative to workspace)."
+        }
+      }
+    },
     "configuration": {
       "title": "VSCTracker",
       "properties": {
