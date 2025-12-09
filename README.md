@@ -5,146 +5,116 @@
 [![License](https://img.shields.io/badge/license-MIT-darkred.svg)](LICENCE)
 ![VSCode](https://img.shields.io/badge/VSCode-1.96+-blue.svg)
 
-> **English version** [here](readme.en.md)
-
 ## Descripción
 
-**VSCTracker** es una extensión para Visual Studio Code que permite rastrear el tiempo total que un usuario pasa programando dentro del editor. Utiliza Firebase para sincronizar el tiempo entre diferentes dispositivos y almacena los datos localmente en caso de que no haya conexión a Internet.
+VSCTracker es una extensión ligera para Visual Studio Code que registra el tiempo de edición por archivo y resume por lenguaje. Los datos se mantienen localmente y se pueden sincronizar con Firebase (opcional) usando un esquema simple por lenguaje.
 
-## Requisitos previos
+Principios clave:
+- Guardado local por archivo y agregados por lenguaje en `localCodingStore.json` dentro de `context.globalStoragePath`.
+- Sincronización remota por lenguaje bajo `vscTracker/languages` en Firebase (mapa { <language>: ms }).
+- Operaciones offline seguras: el local siempre guarda los milisegundos; la sincronización suma/recupera según corresponda.
 
-- Node.js (versión 12 o superior)
-- Visual Studio Code (versión 1.96 o superior)
-- Una cuenta de Firebase
+## Requisitos
 
-## Características
+- Node.js (>=12)
+- Visual Studio Code (>=1.96)
+- (Opcional) Cuenta/Proyecto de Firebase si quieres sincronizar remotamente
 
-- **Rastreo de tiempo**: Mide el tiempo que estás programando en VSCode.
-- **Sincronización**: Guarda y sincroniza el tiempo con Firebase.
-- **Almacenamiento local**: Guarda el tiempo localmente para un uso fuera de línea.
-- **Barra de estado personalizada**: Muestra el tiempo total programando en la barra de estado de VSCode.
-- **Configuración fácil**: Configura Firebase a través de un archivo `.env`.
+## Instalación rápida
 
-## Instalación
-
-### 1. Clonar el repositorio
-
-Para comenzar, clona el repositorio con el siguiente comando:
-
-```bash
-git clone https://github.com/tu-usuario/vsctracker.git
-cd vsctracker
-```
-
-### 2. Instalar dependencias
-
-Asegúrate de tener **Node.js** instalado. Luego, ejecuta el siguiente comando para instalar las dependencias necesarias:
-
-```bash
+```powershell
+git clone https://github.com/capriafranco/VSCTracker.git
+cd VSCTracker
 npm install
 ```
 
-### 3. Configuración de Firebase
+## Configurar Firebase (opcional)
 
-La extensión utiliza **Firebase** para sincronizar el tiempo de programación entre dispositivos. Crea un proyecto en [Firebase Console](https://console.firebase.google.com/) y configura tu proyecto.
+Si quieres que la extensión sincronice con Firebase, configura estas variables de entorno antes de iniciar VS Code:
 
-#### Variables de entorno
+PowerShell (temporal para la sesión):
 
-En la raíz de tu proyecto, crea un archivo `.env` con las siguientes variables. Estas credenciales las obtendrás desde tu proyecto de Firebase:
-
-```env
-FIREBASE_API_KEY=tu-api-key
-FIREBASE_AUTH_DOMAIN=tu-auth-domain
-FIREBASE_PROJECT_ID=tu-project-id
-FIREBASE_STORAGE_BUCKET=tu-storage-bucket
-FIREBASE_MESSAGING_SENDER_ID=tu-messaging-sender-id
-FIREBASE_APP_ID=tu-app-id
-FIREBASE_MEASUREMENT_ID=tu-measurement-id
+```powershell
+$env:FIREBASE_API_KEY = 'tu-api-key'
+$env:FIREBASE_DATABASE_URL = 'https://tu-proyecto-default-rtdb.firebaseio.com'
 ```
 
-## Uso
+También puedes usar un `.env` y la dependencia `dotenv` si prefieres (ya incluida en el proyecto).
 
-### 1. Activar la extensión
+Nota: la extensión sólo iniciará la sincronización remota si las variables necesarias están presentes. Si no, solo funciona offline con almacenamiento local.
 
-Una vez que la extensión esté instalada, comenzará a rastrear automáticamente el tiempo que pasas programando en VSCode. El tiempo total se mostrará en la barra de estado.
+## Almacenamiento local
 
-### 2. Ver el tiempo total
+- Archivo: `localCodingStore.json` (guardado en `context.globalStoragePath` del usuario para la extensión).
+- Estructura principal:
 
-Para ver el tiempo total transcurrido programando, puedes ejecutar el siguiente comando en la paleta de comandos de VSCode:
-
-```bash
-VSCtracker.showTime
-```
-
-### 3. Sincronización con Firebase
-
-La extensión sincroniza el tiempo con Firebase cada vez que se actualiza. Si no hay conexión a Internet, se guarda localmente en tu dispositivo.
-
-## Estructura del código
-
-### **Archivo `extension.ts`**
-
-Este archivo contiene la lógica principal para inicializar Firebase, rastrear el tiempo, y manejar la sincronización:
-
-```typescript
-// Inicialización de Firebase
-const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
-
-// Tiempo de codificación
-let codingTimeInSeconds: number = 0;
-let lastSavedTimeInSeconds: number = -1;
-
-// Cargar el tiempo desde Firebase o almacenamiento local
-loadCodingTime().then(() => {
-    updateStatusBar();
-});
-```
-
-### **Archivo `.env`**
-
-Las credenciales de Firebase necesarias para la conexión están en este archivo:
-
-```env
-FIREBASE_API_KEY=tu-api-key
-FIREBASE_AUTH_DOMAIN=tu-auth-domain
-FIREBASE_PROJECT_ID=tu-project-id
-FIREBASE_STORAGE_BUCKET=tu-storage-bucket
-FIREBASE_MESSAGING_SENDER_ID=tu-messaging-sender-id
-FIREBASE_APP_ID=tu-app-id
-FIREBASE_MEASUREMENT_ID=tu-measurement-id
-```
-
-### **Función `saveAndSyncCodingTime()`**
-
-Esta función guarda el tiempo de codificación y lo sincroniza con Firebase:
-
-```typescript
-function saveAndSyncCodingTime(): void {
-    // Guardar localmente
-    fs.writeFileSync(localStoragePath, JSON.stringify({ timeInSeconds: codingTimeInSeconds }));
-
-    // Sincronizar con Firebase
-    set(ref(database, 'codingTime'), { timeInSeconds: codingTimeInSeconds })
-        .catch(error => console.error('Error al sincronizar con Firebase:', error));
+```json
+{
+    "files": {
+        "C:/ruta/al/archivo.ts": { "language": "typescript", "ms": 1234567 }
+    },
+    "languages": {
+        "typescript": 1234567,
+        "javascript": 987654
+    },
+    "updatedAt": 1710000000000
 }
 ```
 
-## Contribución
+## Comandos (`vt`)
 
-Si deseas contribuir a este proyecto, sigue estos pasos:
+La extensión expone una familia de comandos con prefijo `vt` (abreviatura de VSC Tracker):
 
-1. Haz un fork del proyecto.
-2. Crea una nueva rama (`git checkout -b feature/nueva-funcionalidad`).
-3. Realiza tus cambios y haz un commit (`git commit -am 'Añadir nueva funcionalidad'`).
-4. Empuja tus cambios (`git push origin feature/nueva-funcionalidad`).
-5. Abre un Pull Request en GitHub.
+- `vt` — abre un prompt para escribir subcomandos o muestra la ayuda si no ingresas nada.
+- `vt help` — muestra la ayuda (Output → VSCTracker).
+- `vt status` — comprueba la conexión/configuración de Firebase y lista conteos remotos (si existen).
+- `vt save` — fuerza la reconciliación local → remoto (sube lo que corresponda).
+- `vt show-local` — muestra los totales locales por lenguaje en Output → VSCTracker.
+- `vt show-remote` — muestra los totales remotos por lenguaje (requiere Firebase configurado).
+- `vt pull` — descarga datos remotos y los SUMA al local (útil para recuperar tiempo perdido).
+
+La extensión también sincroniza automáticamente con el remoto cada 3 horas cuando está configurado.
+
+## Comportamiento de sincronización (resumen)
+
+- En `reconcileWithRemote()` la extensión compara los valores por lenguaje:
+    - Si `local >= remote` → se marcará para actualizar el remoto (se sube el valor local).
+    - Si `remote > local` → se SUMA el valor remoto al local (recuperación) y se guarda localmente.
+- Esto permite trabajar offline y resolver conflictos sumando en el lado local si hubo pérdida de datos.
+
+## Desarrollo y pruebas
+
+Compilar y lint:
+
+```powershell
+npm run compile
+npm run lint
+```
+
+Ejecutar tests (usa el runner de VS Code):
+
+```powershell
+npm test
+```
+
+Notas:
+- Para los tests que usan `vscode-test` es recomendable que la ruta del proyecto no contenga espacios problemáticos. Si tienes errores relacionados a rutas, mueve el repo a una carpeta simple (por ejemplo `D:\projects\VSCtracker`).
+
+## Uso rápido (ejemplo)
+
+1. Abre VS Code en la carpeta del proyecto.
+2. (Opcional) exporta variables de Firebase en PowerShell como se indicó arriba.
+3. Instala dependencias: `npm install`.
+4. Ejecuta la extensión en modo desarrollo (F5) o usa los comandos del Command Palette:
+     - `vt` → escribe `help` → verás la ayuda en Output → `VSCTracker`.
+
+## Contribuir
+
+1. Haz fork del repositorio.
+2. Crea una rama: `git checkout -b feature/nombre`.
+3. Haz tus cambios y commitea.
+4. Abre un Pull Request.
 
 ## Licencia
 
-Este proyecto está bajo la licencia **MIT**. Para más detalles, revisa el archivo `LICENSE`.
-
-## Recursos
-
-- [Documentación de Firebase](https://firebase.google.com/docs)
-- [Guía para crear un archivo .env](https://www.npmjs.com/package/dotenv)
+MIT — ver archivo `LICENCE`.

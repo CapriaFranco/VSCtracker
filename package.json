@@ -9,13 +9,37 @@
     "vscode": "^1.96.0"
   },
   "categories": ["Other"],
-  "activationEvents": ["onLanguage:javascript", "onLanguage:typescript", "onStartupFinished"],
+  
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "VSCtracker.helloWorld",
-        "title": "Hello World"
+        "command": "VSCtracker.vt",
+        "title": "vt"
+      },
+      {
+        "command": "VSCtracker.vt.help",
+        "title": "vt help"
+      },
+      {
+        "command": "VSCtracker.vt.save",
+        "title": "vt save (sync local -> db)"
+      },
+      {
+        "command": "VSCtracker.vt.status",
+        "title": "vt status (db connection)"
+      },
+      {
+        "command": "VSCtracker.vt.showLocal",
+        "title": "vt show-local (ver datos locales)"
+      },
+      {
+        "command": "VSCtracker.vt.showRemote",
+        "title": "vt show-remote (ver datos en DB)"
+      },
+      {
+        "command": "VSCtracker.vt.pull",
+        "title": "vt pull (cargar DB -> local, sumar)"
       }
     ],
     "configuration": {
